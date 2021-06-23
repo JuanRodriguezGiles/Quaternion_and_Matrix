@@ -264,7 +264,14 @@ public struct _Quaternion : IEquatable<_Quaternion>
         q.z = newV.z;
         return q;
     }
-    //op ==
+    public static bool operator ==(_Quaternion lhs, _Quaternion rhs)
+    {
+       return Dot(lhs, rhs) > 0.999999f;
+    }
+    public static bool operator !=(_Quaternion lhs, _Quaternion rhs)
+    {
+        return !(lhs == rhs);
+    }
     #endregion
 
     public override string ToString()
