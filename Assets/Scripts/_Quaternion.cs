@@ -1,5 +1,6 @@
 ﻿using System;
 using UnityEngine;
+[Serializable]
 public struct _Quaternion : IEquatable<_Quaternion>
 {
     #region VARIABLES
@@ -18,7 +19,28 @@ public struct _Quaternion : IEquatable<_Quaternion>
     #endregion
 
     #region PROPERTIES
-    //eulerAngles
+    public Vector3 eulerAngles
+    {
+        get
+        {
+            double toDegrees = 180 / Math.PI;
+
+            double roll = toDegrees * Math.Atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y));
+
+            double sinp = 2 * (w * y - z * x);
+            double pitch = toDegrees * Math.Asin(sinp);
+            if (Math.Abs(sinp) >= 1)
+                pitch = Math.PI / 2 * Math.Sign(sinp);
+
+            double yaw = toDegrees * Math.Atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
+
+            return new Vector3((float)roll, (float)pitch, (float)yaw);
+        }
+        set
+        {
+
+        }
+    }
     public _Quaternion normalized => Normalize(this);
     public float this[int index]
     {
@@ -79,14 +101,34 @@ public struct _Quaternion : IEquatable<_Quaternion>
         this.z = z;
         this.w = w;
     }
-    //SetFromRotation
-    //SetLookRotation
-    //ToAngleAxis
+    public void SetFromToRotation(Vector3 fromDirection, Vector3 toDirection)
+    {
+        this = FromToRotation(fromDirection, toDirection);
+    }
+    public void SetLookRotation(Vector3 view, Vector3 up)
+    {
+        this = LookRotation(view, up);
+    }
+    public void ToAngleAxis(out float angle, out Vector3 axis)
+    {
+        Normalize(this);
+        angle = 2.0f * (float)Math.Acos(w);
+        float den = (float)System.Math.Sqrt(1.0 - w * w);
+        if (den > 0.0001f)
+            axis = new Vector3(x, y, z) / den;
+        else
+            axis = new Vector3(1, 0, 0);
+        angle *= (float) (180 / Math.PI);
+    }
     #endregion
 
     #region STATIC METHODS
-    //Angle
-    public static _Quaternion AngleAxis(float angle, Vector3 axis) //ok
+    public static float Angle(_Quaternion a, _Quaternion b)
+    {
+        float num = Dot(a, b);
+        return (float)((double)Mathf.Acos(Mathf.Min(Mathf.Abs(num), 1f)) * 2.0 * 57.2957801818848);
+    }
+    public static _Quaternion AngleAxis(float angle, Vector3 axis)
     {
         axis.Normalize();
         float rad = angle * Mathf.Deg2Rad * 0.5f;
@@ -95,14 +137,37 @@ public struct _Quaternion : IEquatable<_Quaternion>
     }
     public static float Dot(_Quaternion a, _Quaternion b)
     {
-        return a.x * b.x + a.y * b.y + a.z + b.z + a.w + b.w;
+        return (float)((double)a.x * (double)b.x + (double)a.y * (double)b.y + (double)a.z * (double)b.z +
+                        (double)a.w * (double)b.w);
     }
-    //Euler
-    public static _Quaternion FromToRotation(Vector3 fromDirection, Vector3 toDirection) //not ok
+    public static _Quaternion Euler(float x, float y, float z)
+    {
+        _Quaternion qx = identity;
+        _Quaternion qy = identity;
+        _Quaternion qz = identity;
+
+        float sinAngle = 0.0f;
+        float cosAngle = 0.0f;
+
+        sinAngle = Mathf.Sin(Mathf.Deg2Rad * y * 0.5f);
+        cosAngle = Mathf.Cos(Mathf.Deg2Rad * y * 0.5f);
+        qy.Set(0, sinAngle, 0, cosAngle);
+
+        sinAngle = Mathf.Sin(Mathf.Deg2Rad * x * 0.5f);
+        cosAngle = Mathf.Cos(Mathf.Deg2Rad * x * 0.5f);
+        qx.Set(sinAngle, 0, 0, cosAngle);
+
+        sinAngle = Mathf.Sin(Mathf.Deg2Rad * z * 0.5f);
+        cosAngle = Mathf.Cos(Mathf.Deg2Rad * z * 0.5f);
+        qz.Set(0, 0, sinAngle, cosAngle);
+
+        return qy * qx * qz;
+    }
+    public static _Quaternion FromToRotation(Vector3 fromDirection, Vector3 toDirection)
     {
         Vector3 axis = Vector3.Cross(fromDirection, toDirection);
         float angle = Vector3.Angle(fromDirection, toDirection);
-        return _Quaternion.AngleAxis(angle, axis.normalized);
+        return AngleAxis(angle, axis.normalized);
     }
     public static _Quaternion Inverse(_Quaternion rotation)
     {
@@ -115,7 +180,63 @@ public struct _Quaternion : IEquatable<_Quaternion>
     }
     //lerp
     //lerpuncplaped
-    //lookrotation
+    public static _Quaternion LookRotation(Vector3 forward, Vector3 upwards)
+    {
+        forward = Vector3.Normalize(forward);
+        Vector3 right = Vector3.Normalize(Vector3.Cross(upwards, forward));
+        upwards = Vector3.Cross(forward, right);
+        float m00 = right.x;
+        float m01 = right.y;
+        float m02 = right.z;
+        float m10 = upwards.x;
+        float m11 = upwards.y;
+        float m12 = upwards.z;
+        float m20 = forward.x;
+        float m21 = forward.y;
+        float m22 = forward.z;
+
+
+        float num8 = (m00 + m11) + m22;
+        _Quaternion quaternion = new _Quaternion();
+        if (num8 > 0f)
+        {
+            float num = Mathf.Sqrt(num8 + 1f);
+            quaternion.w = num * 0.5f;
+            num = 0.5f / num;
+            quaternion.x = (m12 - m21) * num;
+            quaternion.y = (m20 - m02) * num;
+            quaternion.z = (m01 - m10) * num;
+            return quaternion;
+        }
+        if ((m00 >= m11) && (m00 >= m22))
+        {
+            float num7 = Mathf.Sqrt(((1f + m00) - m11) - m22);
+            float num4 = 0.5f / num7;
+            quaternion.x = 0.5f * num7;
+            quaternion.y = (m01 + m10) * num4;
+            quaternion.z = (m02 + m20) * num4;
+            quaternion.w = (m12 - m21) * num4;
+            return quaternion;
+        }
+        if (m11 > m22)
+        {
+            float num6 = Mathf.Sqrt(((1f + m11) - m00) - m22);
+            float num3 = 0.5f / num6;
+            quaternion.x = (m10 + m01) * num3;
+            quaternion.y = 0.5f * num6;
+            quaternion.z = (m21 + m12) * num3;
+            quaternion.w = (m20 - m02) * num3;
+            return quaternion;
+        }
+        float num5 = Mathf.Sqrt(((1f + m22) - m00) - m11);
+        float num2 = 0.5f / num5;
+        quaternion.x = (m20 + m02) * num2;
+        quaternion.y = (m21 + m12) * num2;
+        quaternion.z = 0.5f * num5;
+        quaternion.w = (m01 - m10) * num2;
+
+        return quaternion;
+    }
     public static _Quaternion Normalize(_Quaternion q)
     {
         float div = Mathf.Sqrt(Dot(q, q));
@@ -148,7 +269,7 @@ public struct _Quaternion : IEquatable<_Quaternion>
 
     public override string ToString()
     {
-        return "x: " + x + " y: " + y + " z: " + z + " w: " + w;
+        return "X:" + x + " Y:" + y + " Z:" + z + " W:" + w;
     }
     public bool Equals(_Quaternion other)
     {
