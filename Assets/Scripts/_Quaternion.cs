@@ -38,7 +38,21 @@ public struct _Quaternion : IEquatable<_Quaternion>
         }
         set
         {
+            float cy = Mathf.Cos(value.z * 0.5f);
+            float sy = Mathf.Sin(value.z * 0.5f);
+            float cp = Mathf.Cos(value.y * 0.5f);
+            float sp = Mathf.Sin(value.y * 0.5f);
+            float cr = Mathf.Cos(value.x * 0.5f);
+            float sr = Mathf.Sin(value.x * 0.5f);
 
+            _Quaternion q;
+
+            q.w = cr * cp * cy + sr * sp * sy;
+            q.x = sr * cp * cy - cr * sp * sy;
+            q.y = cr * sp * cy + sr * cp * sy;
+            q.z = cr * cp * sy - sr * sp * cy;
+
+            this = q;
         }
     }
     public _Quaternion normalized => Normalize(this);
@@ -113,12 +127,12 @@ public struct _Quaternion : IEquatable<_Quaternion>
     {
         Normalize(this);
         angle = 2.0f * (float)Math.Acos(w);
-        float den = (float)System.Math.Sqrt(1.0 - w * w);
+        float den = (float)Math.Sqrt(1.0 - w * w);
         if (den > 0.0001f)
             axis = new Vector3(x, y, z) / den;
         else
             axis = new Vector3(1, 0, 0);
-        angle *= (float) (180 / Math.PI);
+        angle *= (float)(180 / Math.PI);
     }
     #endregion
 
@@ -178,8 +192,16 @@ public struct _Quaternion : IEquatable<_Quaternion>
         q.z = -rotation.z;
         return q;
     }
-    //lerp
-    //lerpuncplaped
+    public static _Quaternion Lerp(_Quaternion a, _Quaternion b, float t)
+    {
+        if (t > 1) t = 1;
+        if (t < 0) t = 0;
+        return Slerp(a, b, t);
+    }
+    public static _Quaternion LerpUnclamped(_Quaternion a, _Quaternion b, float t)
+    {
+        return Slerp(a, b, t);
+    }
     public static _Quaternion LookRotation(Vector3 forward, Vector3 upwards)
     {
         forward = Vector3.Normalize(forward);
@@ -246,9 +268,71 @@ public struct _Quaternion : IEquatable<_Quaternion>
         q.w /= div;
         return q;
     }
-    //rotate torwards
-    //slerp
-    //slerpuncaplmed
+    public static _Quaternion RotateTowards(_Quaternion from, _Quaternion to, float maxDegreesDelta)
+    {
+        float num = Angle(from, to);
+        if (num == 0f)
+        {
+            return to;
+        }
+        float t = Math.Min(1f, maxDegreesDelta / num);
+        return SlerpUnclamped(from, to, t);
+    }
+    public static _Quaternion Slerp(_Quaternion a, _Quaternion b, float t)
+    {
+        if (t > 1) t = 1;
+        if (t < 0) t = 0;
+        return SlerpUnclamped(a, b, t);
+    }
+    public static _Quaternion SlerpUnclamped(_Quaternion a, _Quaternion b, float t)
+    {
+        // if either input is zero, return the other.
+        if (a.x * a.x + a.y * a.y + a.z * a.z + a.w * a.w == 0.0f)
+            return b.x * b.x + b.y * b.y + b.z * b.z + b.w * b.w == 0.0f ? identity : b;
+        if (b.x * b.x + b.y * b.y + b.z * b.z + b.w * b.w == 0.0f)
+            return a;
+
+        float cosHalfAngle = a.w * b.w + Vector3.Dot(new Vector3(a.x, a.y, a.z), new Vector3(b.x, b.y, b.z));
+
+        if (cosHalfAngle >= 1.0f || cosHalfAngle <= -1.0f)
+        {
+            // angle = 0.0f, so just return one input.
+            return a;
+        }
+        if (cosHalfAngle < 0.0f)
+        {
+            b.x = -b.x;
+            b.y = -b.y;
+            b.z = -b.z;
+            b.w = -b.w;
+            cosHalfAngle = -cosHalfAngle;
+        }
+
+        float blendA;
+        float blendB;
+        if (cosHalfAngle < 0.99f)
+        {
+            // do proper slerp for big angles
+            float halfAngle = (float)System.Math.Acos(cosHalfAngle);
+            float sinHalfAngle = (float)System.Math.Sin(halfAngle);
+            float oneOverSinHalfAngle = 1.0f / sinHalfAngle;
+            blendA = (float)System.Math.Sin(halfAngle * (1.0f - t)) * oneOverSinHalfAngle;
+            blendB = (float)System.Math.Sin(halfAngle * t) * oneOverSinHalfAngle;
+        }
+        else
+        {
+            // do lerp if angle is really small.
+            blendA = 1.0f - t;
+            blendB = t;
+        }
+
+        _Quaternion result = new _Quaternion(blendA * a.x + blendB * b.x, blendA * a.y + blendB * b.y,
+            blendA * a.z + blendB * b.z, blendA * a.w + blendB * b.w);
+
+        return result.x * result.x + result.y * result.y + result.z * result.z + result.w * result.w > 0.0f
+            ? Normalize(result)
+            : identity;
+    }
     #endregion
 
     #region Operators
@@ -264,9 +348,29 @@ public struct _Quaternion : IEquatable<_Quaternion>
         q.z = newV.z;
         return q;
     }
+    public static Vector3 operator *(_Quaternion rotation, Vector3 point)
+    {
+        float num1 = rotation.x * 2f;
+        float num2 = rotation.y * 2f;
+        float num3 = rotation.z * 2f;
+        float num4 = rotation.x * num1;
+        float num5 = rotation.y * num2;
+        float num6 = rotation.z * num3;
+        float num7 = rotation.x * num2;
+        float num8 = rotation.x * num3;
+        float num9 = rotation.y * num3;
+        float num10 = rotation.w * num1;
+        float num11 = rotation.w * num2;
+        float num12 = rotation.w * num3;
+        Vector3 result;
+        result.x = (float)((1.0 - ((double)num5 + (double)num6)) * (double)point.x + ((double)num7 - (double)num12) * (double)point.y + ((double)num8 + (double)num11) * (double)point.z);
+        result.y = (float)(((double)num7 + (double)num12) * (double)point.x + (1.0 - ((double)num4 + (double)num6)) * (double)point.y + ((double)num9 - (double)num10) * (double)point.z);
+        result.z = (float)(((double)num8 - (double)num11) * (double)point.x + ((double)num9 + (double)num10) * (double)point.y + (1.0 - ((double)num4 + (double)num5)) * (double)point.z);
+        return result;
+    }
     public static bool operator ==(_Quaternion lhs, _Quaternion rhs)
     {
-       return Dot(lhs, rhs) > 0.999999f;
+        return Dot(lhs, rhs) > 0.999999f;
     }
     public static bool operator !=(_Quaternion lhs, _Quaternion rhs)
     {
