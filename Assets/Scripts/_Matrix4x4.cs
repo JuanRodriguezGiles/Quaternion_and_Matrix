@@ -59,64 +59,28 @@ public struct _Matrix4x4 : IEquatable<_Matrix4x4>
     }
     public static _Matrix4x4 Rotate(Quaternion q)
     {
-        //_Matrix4x4 xMatrix;
-        //_Matrix4x4 yMatrix;
-        //_Matrix4x4 zMatrix;
-        //Vector4 column0;
-        //Vector4 column1;
-        //Vector4 column2;
-        //Vector4 column3;
-        //Vector3 angles = q.eulerAngles;
+        Vector3 angles = q.eulerAngles;
+        angles *= Mathf.PI / 180;
 
-        //column0 = new Vector4(1, 0, 0, 0);
-        //column1 = new Vector4(0, Mathf.Cos(-angles.x), -Mathf.Sin(-angles.x), 0);
-        //column2 = new Vector4(0, Mathf.Sin(-angles.x), Mathf.Cos(-angles.x), 0);
-        //column3 = new Vector4(0, 0, 0, 1);
-        //xMatrix = new _Matrix4x4(column0, column1, column2, column3);
+        Vector4 column0 = new Vector4(1, 0, 0, 0);
+        Vector4 column1 = new Vector4(0, Mathf.Cos(-angles.x), -Mathf.Sin(-angles.x), 0);
+        Vector4 column2 = new Vector4(0, Mathf.Sin(-angles.x), Mathf.Cos(-angles.x), 0);
+        Vector4 column3 = new Vector4(0, 0, 0, 1);
+        _Matrix4x4 xMatrix = new _Matrix4x4(column0, column1, column2, column3);
 
-        //column0 = new Vector4(Mathf.Cos(-angles.y), 0, Mathf.Sin(-angles.x), 0);
-        //column1 = new Vector4(0, 1, 0, 0);
-        //column2 = new Vector4(-Mathf.Sin(-angles.y), 0, Mathf.Cos(-angles.y), 0);
-        //column3 = new Vector4(0, 0, 0, 1);
-        //yMatrix = new _Matrix4x4(column0, column1, column2, column3);
+        column0 = new Vector4(Mathf.Cos(-angles.y), 0, Mathf.Sin(-angles.y), 0);
+        column1 = new Vector4(0, 1, 0, 0);
+        column2 = new Vector4(-Mathf.Sin(-angles.y), 0, Mathf.Cos(-angles.y), 0);
+        column3 = new Vector4(0, 0, 0, 1);
+        _Matrix4x4 yMatrix = new _Matrix4x4(column0, column1, column2, column3);
 
-        //column0 = new Vector4(Mathf.Cos(-angles.z), -Mathf.Sin(-angles.z), 0, 0);
-        //column1 = new Vector4(Mathf.Sin(-angles.z), Mathf.Cos(-angles.z), 0, 0);
-        //column2 = new Vector4(0, 0, 1, 0);
-        //column3 = new Vector4(0, 0, 0, 1);
-        //zMatrix = new _Matrix4x4(column0, column1, column2, column3);
+        column0 = new Vector4(Mathf.Cos(-angles.z), -Mathf.Sin(-angles.z), 0, 0);
+        column1 = new Vector4(Mathf.Sin(-angles.z), Mathf.Cos(-angles.z), 0, 0);
+        column2 = new Vector4(0, 0, 1, 0);
+        column3 = new Vector4(0, 0, 0, 1);
+        _Matrix4x4 zMatrix = new _Matrix4x4(column0, column1, column2, column3);
 
-        //return xMatrix * yMatrix * zMatrix;
-        float num1 = q.x * 2f;
-        float num2 = q.y * 2f;
-        float num3 = q.z * 2f;
-        float num4 = q.x * num1;
-        float num5 = q.y * num2;
-        float num6 = q.z * num3;
-        float num7 = q.x * num2;
-        float num8 = q.x * num3;
-        float num9 = q.y * num3;
-        float num10 = q.w * num1;
-        float num11 = q.w * num2;
-        float num12 = q.w * num3;
-        _Matrix4x4 matrix4x4;
-        matrix4x4.m00 = (float)(1.0 - ((double)num5 + (double)num6));
-        matrix4x4.m10 = num7 + num12;
-        matrix4x4.m20 = num8 - num11;
-        matrix4x4.m30 = 0.0f;
-        matrix4x4.m01 = num7 - num12;
-        matrix4x4.m11 = (float)(1.0 - ((double)num4 + (double)num6));
-        matrix4x4.m21 = num9 + num10;
-        matrix4x4.m31 = 0.0f;
-        matrix4x4.m02 = num8 + num11;
-        matrix4x4.m12 = num9 - num10;
-        matrix4x4.m22 = (float)(1.0 - ((double)num4 + (double)num5));
-        matrix4x4.m32 = 0.0f;
-        matrix4x4.m03 = 0.0f;
-        matrix4x4.m13 = 0.0f;
-        matrix4x4.m23 = 0.0f;
-        matrix4x4.m33 = 1f;
-        return matrix4x4;
+        return xMatrix * yMatrix * zMatrix;
     }
     public static _Matrix4x4 TRS(Vector3 pos, Quaternion q, Vector3 s)
     {
@@ -146,6 +110,15 @@ public struct _Matrix4x4 : IEquatable<_Matrix4x4>
         m.m32 = lhs.m30 * rhs.m02 + lhs.m31 * rhs.m12 + lhs.m32 * rhs.m22 + lhs.m33 * rhs.m32;
         m.m33 = lhs.m30 * rhs.m03 + lhs.m31 * rhs.m13 + lhs.m32 * rhs.m23 + lhs.m33 * rhs.m33;
         return m;
+    }
+    public static Vector4 operator *(_Matrix4x4 lhs, Vector4 vector)
+    {
+        Vector4 res;
+        res.x = lhs.m00 * vector.x + lhs.m01 * vector.y + lhs.m02 * vector.z + lhs.m03 * vector.w;
+        res.y = lhs.m10 * vector.x + lhs.m11 * vector.y + lhs.m12 * vector.z + lhs.m13 * vector.w;
+        res.z = lhs.m20 * vector.x + lhs.m21 * vector.y + lhs.m22 * vector.z + lhs.m23 * vector.w;
+        res.w = lhs.m30 * vector.x + lhs.m31 * vector.y + lhs.m32 * vector.z + lhs.m33 * vector.w;
+        return res;
     }
     public Vector4 GetColumn(int index)
     {
